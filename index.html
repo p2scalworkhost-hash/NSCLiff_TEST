@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>NSC LIFF Register</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="top-panel">
+        <div class="brand-stage">
+          <img class="brand-logo" src="./assets/nsc-logo.svg" alt="NSC Specialist Surgery" />
+          <p class="eyebrow">Staff LIFF Portal</p>
+          <h1>ลงเวลาและแจ้งลางาน</h1>
+        </div>
+
+        <div class="line-profile" aria-live="polite">
+          <img id="lineAvatar" src="" alt="LINE profile" />
+          <div>
+            <span class="profile-label">LINE</span>
+            <strong id="lineName">LINE User</strong>
+            <small id="lineId">mock-line-user</small>
+          </div>
+          <span class="line-badge">verified</span>
+        </div>
+      </section>
+
+      <section id="registerView" class="content-panel">
+        <form id="registerForm" class="register-form" novalidate>
+          <div class="section-head">
+            <div>
+              <p class="section-kicker">ครั้งแรก</p>
+              <h2>สร้างข้อมูลพนักงาน</h2>
+            </div>
+            <span class="status-pill">registered</span>
+          </div>
+
+          <div class="step-strip">
+            <span>1</span>
+            <p>ข้อมูลนี้จะผูกกับ LINE ของคุณ และใช้สำหรับระบบลงเวลา/ลา/OT</p>
+          </div>
+
+          <div class="grid-two">
+            <label>
+              ชื่อจริง
+              <input name="firstName" autocomplete="given-name" required />
+            </label>
+
+            <label>
+              นามสกุล
+              <input name="lastName" autocomplete="family-name" required />
+            </label>
+          </div>
+
+          <div class="grid-two">
+            <label>
+              ชื่อเล่น
+              <input name="nickname" autocomplete="nickname" required />
+            </label>
+
+            <label>
+              เบอร์โทรศัพท์
+              <input
+                name="phone"
+                inputmode="tel"
+                autocomplete="tel"
+                pattern="[0-9]{9,10}"
+                maxlength="10"
+                required
+              />
+            </label>
+          </div>
+
+          <label>
+            แผนก
+            <select name="department" required>
+              <option value="">เลือกแผนก</option>
+              <option value="OR">OR - Operation Room</option>
+              <option value="SALE">SALE - Sales</option>
+              <option value="MKT">MKT - Marketing</option>
+              <option value="CS">CS - Customer Service</option>
+              <option value="ADMIN">ADMIN - Admin / HR</option>
+              <option value="OPERATION">OPERATION - Operations</option>
+              <option value="MANAGER">MANAGER - Management</option>
+              <option value="MAID">MAID - Maid / Cleaner</option>
+            </select>
+          </label>
+
+          <label>
+            รหัสพนักงาน
+            <input name="employeeId" placeholder="ถ้ายังไม่มี เว้นว่างได้" />
+          </label>
+
+          <label class="check-row">
+            <input type="checkbox" name="consent" required />
+            <span>ยืนยันว่าข้อมูลนี้เป็นของฉันและใช้สำหรับระบบลงเวลา/เงินเดือนของ NSC</span>
+          </label>
+
+          <p id="formError" class="form-error" hidden></p>
+
+          <div class="action-row">
+            <button class="primary-button" type="submit">บันทึกข้อมูล</button>
+          </div>
+        </form>
+      </section>
+
+      <section id="pendingView" class="content-panel" hidden>
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">Registration status</p>
+            <h2>รอตรวจสอบข้อมูล</h2>
+          </div>
+          <span class="status-pill warning" style="background: #fef0c7; color: #b54708;">รอตรวจสอบ</span>
+        </div>
+
+        <div style="text-align: center; padding: 24px 12px; display: grid; gap: 16px;">
+          <div class="lock-icon" style="background: #e0f2fe; color: #0369a1; justify-self: center; display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; font-size: 28px;">⏳</div>
+          <div>
+            <h3 style="margin: 0; font-size: 18px; color: var(--ink);">ได้รับข้อมูลการลงทะเบียนแล้ว</h3>
+            <p style="margin: 8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5;">
+              ข้อมูลของคุณอยู่ระหว่างการตรวจสอบความถูกต้องโดย HR เพื่อผูกกับระบบ Payroll<br>
+              เมื่อทำการตรวจสอบเรียบร้อยแล้ว ระบบจะเปิดให้ใช้งานโดยอัตโนมัติ
+            </p>
+          </div>
+          <div style="margin-top: 12px; display: grid; grid-template-columns: 1fr; gap: 8px;">
+            <button id="checkStatusButton" class="secondary-button" type="button" style="width: 100%;">ตรวจสอบสถานะล่าสุด</button>
+            <button id="pendingResetButton" class="ghost-button" type="button" style="width: 100%;">ล้างข้อมูลและลงทะเบียนใหม่</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="profileView" class="content-panel success-panel" hidden>
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">Daily check</p>
+            <h2>เลือกสถานะวันนี้</h2>
+          </div>
+          <span class="status-pill success">พร้อมใช้งาน</span>
+        </div>
+
+        <form id="attendanceForm" class="attendance-form">
+          <label class="date-field">
+            วันที่
+            <input name="workDate" type="date" required />
+          </label>
+
+          <div class="mode-row" role="group" aria-label="work status">
+            <label>
+              <input type="radio" name="workStatus" value="work" checked />
+              <span>เข้างาน</span>
+            </label>
+            <label>
+              <input type="radio" name="workStatus" value="holiday" />
+              <span>หยุด/นักขัตฤกษ์/พักร้อน</span>
+            </label>
+            <label>
+              <input type="radio" name="workStatus" value="paid_leave" />
+              <span>ลาป่วย/ลากิจ</span>
+            </label>
+            <label>
+              <input type="radio" name="workStatus" value="unpaid_leave" />
+              <span>ลาไม่รับเงินเดือน</span>
+            </label>
+          </div>
+
+          <div id="workFields" class="grid-two">
+            <label>
+              เวลาเริ่มงาน
+              <select name="startTime">
+                <option value="06:00">06:00</option>
+                <option value="07:00">07:00</option>
+                <option value="08:00">08:00</option>
+                <option value="09:00" selected>09:00</option>
+                <option value="custom">เวลาอื่น</option>
+              </select>
+            </label>
+
+            <label id="customStartTimeRow" class="custom-time-row" hidden>
+              เวลาอื่น
+              <span class="time-pair">
+                <input
+                  name="customStartHour"
+                  inputmode="numeric"
+                  maxlength="2"
+                  min="1"
+                  max="24"
+                  placeholder="1-24"
+                  aria-label="ชั่วโมง"
+                />
+                <span class="time-separator">:</span>
+                <input name="customStartMinute" value="00" readonly aria-label="นาที" />
+              </span>
+            </label>
+          </div>
+
+          <div id="leaveFields" class="grid-two" hidden>
+            <label>
+              รายละเอียด
+              <select name="leaveType">
+                <option value="dayoff">หยุด</option>
+                <option value="public_holiday">นักขัตฤกษ์</option>
+                <option value="vacation">พักร้อน</option>
+                <option value="sick">ลาป่วย</option>
+                <option value="personal">ลากิจ</option>
+                <option value="unpaid">ลาไม่รับเงินเดือน</option>
+              </select>
+            </label>
+
+            <label>
+              หมายเหตุ
+              <input name="leaveNote" placeholder="ถ้ามี" />
+            </label>
+          </div>
+
+          <div id="otPreview" class="ot-preview">
+            <span>ถาม OT เวลา</span>
+            <strong id="otPreviewTime">18:00</strong>
+          </div>
+
+          <div class="action-row">
+            <button class="primary-button" type="submit">บันทึกเวลาวันนี้</button>
+          </div>
+        </form>
+
+        <div id="lockedPanel" class="locked-panel" hidden>
+          <div class="lock-icon">✓</div>
+          <div>
+            <p class="section-kicker">Checked in</p>
+            <h2>บันทึกเข้างานแล้ว</h2>
+            <p id="lockedSummary">ระบบจะเปิดให้ลงข้อมูลรอบใหม่เวลา 21:00-07:00 น.</p>
+          </div>
+
+          <div class="ot-answer-card">
+            <span>หลังทำงานจริง วันนี้มี OT ไหม</span>
+            <div class="ot-choice-row" role="group" aria-label="เลือก OT">
+              <button id="noOtButton" class="ot-choice active" type="button" data-ot="false">ไม่มี OT</button>
+              <button id="yesOtButton" class="ot-choice" type="button" data-ot="true">มี OT</button>
+            </div>
+            <div id="otNoteSection" style="display: none; margin-top: 10px;">
+              <label style="display: grid; gap: 6px; font-size: 14px; text-align: left;">
+                หมายเหตุ OT (ถ้ามี)
+                <textarea id="otNoteInput" placeholder="ระบุเหตุผลหรือรายละเอียด OT..." rows="2" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--paper); font-size: 14px; resize: vertical; font-family: inherit;"></textarea>
+              </label>
+              <button id="saveOtNoteButton" class="primary-button" type="button" style="margin-top: 8px; font-size: 14px;">บันทึก OT + หมายเหตุ</button>
+            </div>
+            <p id="postCheckinOtLabel">ยังไม่ได้บันทึกคำตอบ OT</p>
+          </div>
+
+          <!-- Emergency Leave Action -->
+          <div id="emergencyActionWrapper" style="grid-column: 1 / -1; display: grid; gap: 8px; width: 100%;">
+            <button id="emergencyLeaveButton" class="secondary-button" type="button" style="margin-top: 8px; background: #fee4e2; color: #b42318; border-color: #fda29b;">
+              ⚠️ แจ้งลาฉุกเฉิน
+            </button>
+
+            <!-- Emergency Leave Inline Form -->
+            <div id="emergencyLeaveSection" style="background: #fcfcfd; border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-top: 8px; display: grid; gap: 12px;" hidden>
+              <h3 style="margin: 0; font-size: 16px; color: var(--ink);">ระบุประเภทการลาฉุกเฉิน</h3>
+              <label style="display: grid; gap: 6px; font-size: 14px; text-align: left;">
+                ประเภทการลา
+                <select id="emergencyLeaveType" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--paper);">
+                  <option value="sick">ลาป่วย</option>
+                  <option value="personal">ลากิจ</option>
+                  <option value="vacation">พักร้อน</option>
+                </select>
+              </label>
+              <label style="display: grid; gap: 6px; font-size: 14px; text-align: left;">
+                หมายเหตุ / เหตุผล
+                <input id="emergencyLeaveNote" placeholder="ระบุเหตุผลฉุกเฉิน..." style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--paper);" />
+              </label>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <button id="submitEmergencyLeave" class="primary-button" type="button" style="background: var(--danger); font-size: 14px;">ยืนยันการลา</button>
+                <button id="cancelEmergencyLeave" class="secondary-button" type="button" style="font-size: 14px;">ยกเลิก</button>
+              </div>
+            </div>
+          </div>
+
+          <button id="resetCheckinButton" class="ghost-button" type="button" style="grid-column: 1 / -1; margin-top: 8px;">
+            ล้างข้อมูลเข้างานวันนี้ (เพื่อทดสอบใหม่)
+          </button>
+        </div>
+
+        <div id="lineLogPanel" class="line-log-panel" hidden>
+          <div class="section-head compact-head">
+            <div>
+              <p class="section-kicker">Daily_Line_Log</p>
+              <h2>ข้อมูลที่ LIFF จะส่งไปเทียบ Excel</h2>
+            </div>
+          </div>
+
+          <dl class="detail-list">
+            <div>
+              <dt>ชื่อบุคคล</dt>
+              <dd id="logFullName">-</dd>
+            </div>
+            <div>
+              <dt>คอลัมน์วันที่ใน Excel</dt>
+              <dd id="logExcelDateKey">-</dd>
+            </div>
+            <div>
+              <dt>สถานะที่แจ้ง</dt>
+              <dd id="logWorkStatus">-</dd>
+            </div>
+            <div>
+              <dt>เวลาเริ่ม / เลิกปกติ</dt>
+              <dd id="logPlanTime">-</dd>
+            </div>
+            <div>
+              <dt>ถาม OT เวลา</dt>
+              <dd id="logOtPrompt">-</dd>
+            </div>
+            <div>
+              <dt>ตอบ OT</dt>
+              <dd id="logOtIntent">-</dd>
+            </div>
+            <div id="logOtNoteRow">
+              <dt>หมายเหตุ OT</dt>
+              <dd id="logOtNote">-</dd>
+            </div>
+          </dl>
+
+          <div class="mock-excel-row">
+            <span id="mockExcelName">ชื่อบุคคล</span>
+            <strong id="mockExcelCell">4-1: -</strong>
+          </div>
+        </div>
+
+        <div class="section-head profile-title">
+          <div>
+            <p class="section-kicker">Employee profile</p>
+            <h2>ข้อมูลของฉัน</h2>
+          </div>
+        </div>
+
+        <div class="profile-card">
+          <div class="employee-avatar" id="employeeInitials">NS</div>
+          <div>
+            <strong id="employeeName">-</strong>
+            <span id="employeeMeta">-</span>
+          </div>
+        </div>
+
+        <dl class="detail-list">
+          <div>
+            <dt>รหัสพนักงาน</dt>
+            <dd id="savedEmployeeId">-</dd>
+          </div>
+          <div>
+            <dt>เบอร์โทร</dt>
+            <dd id="savedPhone">-</dd>
+          </div>
+          <div>
+            <dt>LINE User ID</dt>
+            <dd id="savedLineId">-</dd>
+          </div>
+          <div>
+            <dt>สมัครเมื่อ</dt>
+            <dd id="savedAt">-</dd>
+          </div>
+        </dl>
+
+        <div id="profileActions" class="action-row split">
+          <button id="editButton" class="secondary-button" type="button">แก้ไขข้อมูล</button>
+          <button id="resetButton" class="ghost-button" type="button">ล้างข้อมูลจำลอง</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
