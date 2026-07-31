@@ -21,6 +21,7 @@ const firebaseConfig = {
 let db = null;
 let currentLineProfile = null;
 let currentActiveAttendance = null;
+let currentOtRecord = null;
 
 // Initialize Firebase if configured
 try {
@@ -372,8 +373,11 @@ function todayInputValue() {
 
 function getWorkCycleDateValue(now = new Date()) {
   const cycle = new Date(now);
-  if (cycle.getHours() < 7) {
-    cycle.setDate(cycle.getDate() - 1);
+  // รอบวันที่ใหม่เริ่มเวลา 07:00 น. และใช้ชื่อวันที่ของวันถัดไป
+  // เช่น 1 ก.ค. 06:59 = รอบวันที่ 1 ก.ค.
+  //      1 ก.ค. 07:00 = รอบวันที่ 2 ก.ค.
+  if (cycle.getHours() >= 7) {
+    cycle.setDate(cycle.getDate() + 1);
   }
   const y = cycle.getFullYear();
   const m = String(cycle.getMonth() + 1).padStart(2, '0');
@@ -381,45 +385,13 @@ function getWorkCycleDateValue(now = new Date()) {
   return `${y}-${m}-${d}`;
 }
 
-function getNextDayDateString(dateStr) {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const date = new Date(y, m - 1, d);
-  date.setDate(date.getDate() + 1);
-  const ny = date.getFullYear();
-  const nm = String(date.getMonth() + 1).padStart(2, '0');
-  const nd = String(date.getDate()).padStart(2, '0');
-  return `${ny}-${nm}-${nd}`;
-}
-
-async function getActiveCycleDate(lineUserId) {
-  const baseCycleDate = getWorkCycleDateValue();
-  if (!lineUserId) return baseCycleDate;
-
-  const now = new Date();
-  
-  // Parse local dates safely using integer parts
-  const [y, m, d] = baseCycleDate.split("-").map(Number);
-  const startWindow = new Date(y, m - 1, d, 21, 0, 0);
-
-  const nextDayStr = getNextDayDateString(baseCycleDate);
-  const [ny, nm, nd] = nextDayStr.split("-").map(Number);
-  const endWindow = new Date(ny, nm - 1, nd, 7, 0, 0);
-  
-  const inAdvanceWindow = (now >= startWindow && now <= endWindow);
-
-  if (inAdvanceWindow) {
-    const baseRecord = await loadAttendance(lineUserId, baseCycleDate);
-    // Allow advance check-in if they submitted any valid status (work, holiday, or leave) for the base cycle date
-    if (baseRecord && baseRecord.workStatus && baseRecord.workStatus !== "reset" && baseRecord.cycleDate === baseCycleDate) {
-      return getNextDayDateString(baseCycleDate);
-    }
-  }
-  return baseCycleDate;
+async function getActiveCycleDate() {
+  return getWorkCycleDateValue();
 }
 
 
 function getNextResetText() {
-  return "ระบบจะเปิดให้ลงข้อมูลรอบใหม่เวลา 21:00-07:00 น.";
+  return "ระบบจะเปิดรอบวันถัดไปเวลา 07:00 น.";
 }
 
 function formatWorkDate(dateValue) {
@@ -492,6 +464,7 @@ function showProfile(profile) {
   document.querySelector("#savedLineId").textContent = profile.lineUserId;
   document.querySelector("#savedAt").textContent = formatDate(profile.createdAt);
   applyAttendanceLock();
+  refreshOtManager();
 }
 
 function getStatusLabel(status) {
@@ -641,11 +614,6 @@ function renderLockedPanel(record) {
 
   document.querySelector("#lockedSummary").textContent = summary;
 
-  const otCard = document.querySelector(".ot-answer-card");
-  if (otCard) {
-    otCard.hidden = record.workStatus !== "work";
-  }
-
   const emergencyActionWrapper = document.querySelector("#emergencyActionWrapper");
   if (emergencyActionWrapper) {
     emergencyActionWrapper.hidden = record.workStatus !== "work";
@@ -661,41 +629,166 @@ function renderLockedPanel(record) {
     emergencyLeaveButton.hidden = false;
   }
 
-  const otCardLabel = document.querySelector(".ot-answer-card > span");
-  if (otCardLabel) {
-    otCardLabel.textContent = `หลังทำงานจริง วันที่ ${formatWorkDate(record.workDate)} มี OT ไหม`;
+}
+
+function getAttendanceRecordKey(record) {
+  return `${record.lineUserId}-${record.cycleDate}`;
+}
+
+async function saveOtRecord(record) {
+  if (db) {
+    const docId = `${record.lineUserId}_${record.cycleDate}`;
+    try {
+      await Promise.all([
+        db.collection("attendance").doc(docId).set(record),
+        db.collection("attendance_history").doc(docId).set(record),
+      ]);
+      console.log("Historical OT saved to Firebase Firestore.");
+    } catch (err) {
+      console.error("Firestore saveOtRecord failed:", err);
+      throw new Error("ไม่สามารถบันทึก OT ไปยังเซิร์ฟเวอร์ได้");
+    }
   }
 
-  setOtChoice(Boolean(record.employeeOtIntent), false);
+  let history = [];
+  try {
+    const storedHistory = JSON.parse(localStorage.getItem(ATTENDANCE_HISTORY_KEY));
+    history = Array.isArray(storedHistory) ? storedHistory : [];
+  } catch {
+    history = [];
+  }
+
+  const recordKey = record.recordKey || getAttendanceRecordKey(record);
+  const nextRecord = { ...record, recordKey };
+  const index = history.findIndex(
+    (item) => item.lineUserId === record.lineUserId && item.cycleDate === record.cycleDate,
+  );
+  if (index >= 0) {
+    history[index] = { ...history[index], ...nextRecord };
+  } else {
+    history.unshift(nextRecord);
+  }
+  localStorage.setItem(ATTENDANCE_HISTORY_KEY, JSON.stringify(history.slice(0, 100)));
+
+  try {
+    const activeRecord = JSON.parse(localStorage.getItem(ATTENDANCE_KEY));
+    if (
+      activeRecord?.lineUserId === record.lineUserId &&
+      activeRecord?.cycleDate === record.cycleDate
+    ) {
+      localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(nextRecord));
+    }
+  } catch (err) {
+    console.error("Failed to update active OT cache:", err);
+  }
+
+  return nextRecord;
+}
+
+function renderOtManagerRecord(record) {
+  const controls = document.querySelector("#otManagerControls");
+  const summary = document.querySelector("#otMatchSummary");
+  const question = document.querySelector("#otManagerQuestion");
+  const noteSection = document.querySelector("#otNoteSection");
+  const noteInput = document.querySelector("#otNoteInput");
+  const hasAnswer = Boolean(record?.otAnsweredAt);
+  const hasOt = hasAnswer && Boolean(record.employeeOtIntent);
+
+  controls.hidden = !record;
+  summary.replaceChildren();
+
+  if (!record) {
+    const emptyText = document.createElement("span");
+    emptyText.textContent = "ยังไม่มีรายการเช็คอินสำหรับบันทึก OT";
+    summary.append(emptyText);
+    return;
+  }
+
+  const title = document.createElement("strong");
+  title.textContent = `${formatWorkDate(record.workDate)} · ${record.fullName}`;
+  const times = document.createElement("span");
+  times.textContent = `เวลาเช็คอิน ${record.plannedStartTime} · เวลาเลิกปกติ ${record.plannedEndTime}`;
+  summary.append(title, times);
+
+  question.textContent = `วันที่ ${formatWorkDate(record.workDate)} มี OT ไหม`;
+  document.querySelector("#noOtButton").classList.toggle("active", hasAnswer && !hasOt);
+  document.querySelector("#yesOtButton").classList.toggle("active", hasOt);
+  noteSection.hidden = !hasOt;
+  noteInput.value = record.otNote || "";
   updatePostCheckinOtLabel(record);
+}
+
+async function refreshOtManager(preferredCycleDate = "") {
+  const select = document.querySelector("#otAttendanceSelect");
+  if (!select || !currentLineProfile) return;
+
+  const previousSelection = preferredCycleDate || select.value || currentOtRecord?.cycleDate || "";
+  const history = await loadAttendanceHistory(currentLineProfile.userId);
+  const uniqueRecords = new Map();
+
+  history
+    .filter(
+      (record) =>
+        record.lineUserId === currentLineProfile.userId &&
+        record.workStatus === "work" &&
+        record.cycleDate &&
+        record.plannedStartTime,
+    )
+    .sort((a, b) => {
+      const dateCompare = String(b.workDate).localeCompare(String(a.workDate));
+      return dateCompare || String(b.submittedAt).localeCompare(String(a.submittedAt));
+    })
+    .forEach((record) => {
+      if (!uniqueRecords.has(record.cycleDate)) {
+        uniqueRecords.set(record.cycleDate, record);
+      }
+    });
+
+  const records = [...uniqueRecords.values()];
+  select.replaceChildren();
+
+  if (records.length === 0) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "ยังไม่มีประวัติเช็คอิน";
+    select.append(option);
+    select.disabled = true;
+    currentOtRecord = null;
+    renderOtManagerRecord(null);
+    return;
+  }
+
+  records.forEach((record) => {
+    const option = document.createElement("option");
+    option.value = record.cycleDate;
+    option.textContent = `${formatWorkDate(record.workDate)} · ${record.plannedStartTime}-${record.plannedEndTime}`;
+    select.append(option);
+  });
+
+  select.disabled = false;
+  select.value = records.some((record) => record.cycleDate === previousSelection)
+    ? previousSelection
+    : records[0].cycleDate;
+  currentOtRecord = records.find((record) => record.cycleDate === select.value) || records[0];
+  renderOtManagerRecord(currentOtRecord);
 }
 
 async function setOtChoice(hasOt, shouldSave = true, note = null) {
   document.querySelector("#noOtButton").classList.toggle("active", !hasOt);
   document.querySelector("#yesOtButton").classList.toggle("active", hasOt);
 
-  // Show/hide the OT note section
   const otNoteSection = document.querySelector("#otNoteSection");
-  if (otNoteSection) {
-    otNoteSection.style.display = hasOt ? "block" : "none";
-  }
+  otNoteSection.hidden = !hasOt;
 
   if (!shouldSave) {
-    // Restore saved note into textarea if already answered
-    const record = await getActiveAttendance();
-    if (record && record.employeeOtIntent && record.otNote) {
-      const otNoteInput = document.querySelector("#otNoteInput");
-      if (otNoteInput) otNoteInput.value = record.otNote;
-    }
     return;
   }
 
-  const record = await getActiveAttendance();
-  if (!record) {
-    await applyAttendanceLock();
-    return;
+  if (!currentOtRecord) {
+    throw new Error("กรุณาเลือกรายการเช็คอินก่อนบันทึก OT");
   }
 
+  const record = { ...currentOtRecord };
   record.employeeOtIntent = hasOt;
   record.otAnsweredAt = new Date().toISOString();
   if (note !== null) {
@@ -703,10 +796,13 @@ async function setOtChoice(hasOt, shouldSave = true, note = null) {
   } else if (!hasOt) {
     record.otNote = "";
   }
-  await saveAttendance(record);
-  await saveAttendanceHistory(record);
-  renderDailyLineLog(record);
-  updatePostCheckinOtLabel(record);
+  currentOtRecord = await saveOtRecord(record);
+  renderOtManagerRecord(currentOtRecord);
+
+  if (currentActiveAttendance?.cycleDate === record.cycleDate) {
+    currentActiveAttendance = currentOtRecord;
+    renderDailyLineLog(currentOtRecord);
+  }
 }
 
 function updatePostCheckinOtLabel(record) {
@@ -771,6 +867,7 @@ async function showAttendanceResult() {
   await saveAttendanceHistory(log);
   renderDailyLineLog(log);
   await applyAttendanceLock();
+  await refreshOtManager(log.cycleDate);
   alert(`บันทึกข้อมูลวันที่ ${formatWorkDate(workDate)} แล้ว ระบบจะถาม OT เวลา ${toTime(toMinutes(startTime) + 9 * 60)}`);
 }
 
@@ -1022,25 +1119,44 @@ async function init() {
         } catch {}
       }
       await applyAttendanceLock();
+      await refreshOtManager();
       alert("ล้างข้อมูลการเข้างานวันนี้สำเร็จ สามารถลงเวลาใหม่ได้ทันที");
     }
   });
 
-  document.querySelector("#noOtButton").addEventListener("click", () => {
-    setOtChoice(false);
-    alert("บันทึกว่า วันนี้ไม่มี OT แล้ว");
+  document.querySelector("#otAttendanceSelect").addEventListener("change", (event) => {
+    refreshOtManager(event.target.value);
+  });
+
+  document.querySelector("#noOtButton").addEventListener("click", async () => {
+    try {
+      await setOtChoice(false);
+      alert(`บันทึกว่า วันที่ ${formatWorkDate(currentOtRecord.workDate)} ไม่มี OT แล้ว`);
+    } catch (err) {
+      console.error(err);
+      renderOtManagerRecord(currentOtRecord);
+      alert(err.message || "ไม่สามารถบันทึก OT ได้ กรุณาลองใหม่");
+    }
   });
 
   document.querySelector("#yesOtButton").addEventListener("click", () => {
-    setOtChoice(true, false); // Show note section without saving yet
-    const otNoteSection = document.querySelector("#otNoteSection");
-    if (otNoteSection) otNoteSection.style.display = "block";
+    setOtChoice(true, false);
   });
 
   document.querySelector("#saveOtNoteButton").addEventListener("click", async () => {
     const otNote = (document.querySelector("#otNoteInput")?.value || "").trim();
-    await setOtChoice(true, true, otNote);
-    alert("บันทึกว่า วันนี้มี OT" + (otNote ? ` — ${otNote}` : "") + " แล้ว");
+    try {
+      await setOtChoice(true, true, otNote);
+      alert(
+        `บันทึกว่า วันที่ ${formatWorkDate(currentOtRecord.workDate)} มี OT` +
+        (otNote ? ` — ${otNote}` : "") +
+        " แล้ว",
+      );
+    } catch (err) {
+      console.error(err);
+      renderOtManagerRecord(currentOtRecord);
+      alert(err.message || "ไม่สามารถบันทึก OT ได้ กรุณาลองใหม่");
+    }
   });
 
   const emergencyLeaveBtn = document.querySelector("#emergencyLeaveButton");
@@ -1095,6 +1211,7 @@ async function init() {
       emergencyLeaveBtn.hidden = false;
 
       await applyAttendanceLock();
+      await refreshOtManager();
       alert("แจ้งลาฉุกเฉินสำเร็จ (เปลี่ยนสถานะเรียบร้อยแล้ว)");
     });
   }
