@@ -43,7 +43,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
   min-width: 0;
 }
@@ -259,9 +260,9 @@ label {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
-  min-height: 48px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--field);
@@ -271,8 +272,18 @@ select {
   font-size: 16px;
 }
 
+input,
+select {
+  min-height: 48px;
+}
+
+textarea {
+  resize: vertical;
+}
+
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   border-color: var(--rose);
   box-shadow: 0 0 0 3px rgba(200, 50, 82, 0.14);
 }
@@ -603,6 +614,32 @@ dd {
   background: #fff;
 }
 
+.ot-manager-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #dbeee4;
+  border-radius: 8px;
+  background: var(--sage-soft);
+}
+
+.ot-match-summary {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid #dbeee4;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.ot-match-summary strong {
+  color: var(--ink);
+  font-size: 15px;
+}
+
 .ot-answer-card > span {
   color: var(--ink);
   font-size: 14px;
@@ -632,6 +669,15 @@ dd {
   color: var(--muted);
   font-size: 13px;
   font-weight: 800;
+}
+
+#otNoteSection {
+  display: grid;
+  gap: 8px;
+}
+
+#otNoteSection .primary-button {
+  font-size: 14px;
 }
 
 .compact-head {
