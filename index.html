@@ -228,23 +228,7 @@
           <div>
             <p class="section-kicker">Checked in</p>
             <h2>บันทึกเข้างานแล้ว</h2>
-            <p id="lockedSummary">ระบบจะเปิดให้ลงข้อมูลรอบใหม่เวลา 21:00-07:00 น.</p>
-          </div>
-
-          <div class="ot-answer-card">
-            <span>หลังทำงานจริง วันนี้มี OT ไหม</span>
-            <div class="ot-choice-row" role="group" aria-label="เลือก OT">
-              <button id="noOtButton" class="ot-choice active" type="button" data-ot="false">ไม่มี OT</button>
-              <button id="yesOtButton" class="ot-choice" type="button" data-ot="true">มี OT</button>
-            </div>
-            <div id="otNoteSection" style="display: none; margin-top: 10px;">
-              <label style="display: grid; gap: 6px; font-size: 14px; text-align: left;">
-                หมายเหตุ OT (ถ้ามี)
-                <textarea id="otNoteInput" placeholder="ระบุเหตุผลหรือรายละเอียด OT..." rows="2" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--paper); font-size: 14px; resize: vertical; font-family: inherit;"></textarea>
-              </label>
-              <button id="saveOtNoteButton" class="primary-button" type="button" style="margin-top: 8px; font-size: 14px;">บันทึก OT + หมายเหตุ</button>
-            </div>
-            <p id="postCheckinOtLabel">ยังไม่ได้บันทึกคำตอบ OT</p>
+            <p id="lockedSummary">ระบบจะเปิดรอบวันถัดไปเวลา 07:00 น.</p>
           </div>
 
           <!-- Emergency Leave Action -->
@@ -279,6 +263,41 @@
             ล้างข้อมูลเข้างานวันนี้ (เพื่อทดสอบใหม่)
           </button>
         </div>
+
+        <section id="otManagerPanel" class="ot-manager-panel">
+          <div class="section-head compact-head">
+            <div>
+              <p class="section-kicker">Overtime</p>
+              <h2>บันทึก OT</h2>
+            </div>
+            <span class="status-pill">ย้อนหลังได้</span>
+          </div>
+
+          <label>
+            เลือกวันที่เช็คอิน
+            <select id="otAttendanceSelect"></select>
+          </label>
+
+          <div id="otMatchSummary" class="ot-match-summary">
+            <span>ยังไม่มีรายการเช็คอินสำหรับบันทึก OT</span>
+          </div>
+
+          <div id="otManagerControls" class="ot-answer-card" hidden>
+            <span id="otManagerQuestion">รายการนี้มี OT ไหม</span>
+            <div class="ot-choice-row" role="group" aria-label="เลือก OT">
+              <button id="noOtButton" class="ot-choice" type="button" data-ot="false">ไม่มี OT</button>
+              <button id="yesOtButton" class="ot-choice" type="button" data-ot="true">มี OT</button>
+            </div>
+            <div id="otNoteSection" hidden>
+              <label>
+                หมายเหตุ OT (ถ้ามี)
+                <textarea id="otNoteInput" placeholder="ระบุเหตุผลหรือรายละเอียด OT..." rows="2"></textarea>
+              </label>
+              <button id="saveOtNoteButton" class="primary-button" type="button">บันทึก OT + หมายเหตุ</button>
+            </div>
+            <p id="postCheckinOtLabel">ยังไม่ได้บันทึกคำตอบ OT</p>
+          </div>
+        </section>
 
         <div id="lineLogPanel" class="line-log-panel" hidden>
           <div class="section-head compact-head">
